@@ -11,6 +11,12 @@ public class Main {
     //if we didn't have this, it'd be much harder to create and follow all the links
     static HashMap<String, Person> people = new HashMap<String, Person>();
 
+    /**
+     * This is a map of unsolved to solved clusters, so that we can prune entire branches of the tree rather than repeat a ton of calculations.
+     */
+    static HashMap<Cluster, Cluster> cheatSheet = new HashMap<Cluster, Cluster>();
+    static int cheats = 0;
+
     static Random r = new Random();
 
     public static void main(String[] args) throws IOException {
@@ -20,6 +26,8 @@ public class Main {
         Cluster best = solve(initialCluster);
         //System.out.println("best:");
         //System.out.println(best.toString());
+        System.out.println("cheat sheet size: " + cheatSheet.size());
+        System.out.println("cheats used: " + cheats);
         System.out.println("optimalPerPerson:");
         for (Person person : masterList.optimalClusterPerPerson.keySet()) {
             System.out.println(person.name + ": " + masterList.optimalClusterPerPerson.get(person).toString());
@@ -98,6 +106,10 @@ public class Main {
     }
 
     public static Cluster solve(Cluster starter) {
+        if(cheatSheet.containsKey(starter)){ //skip everything and return the answer if we already know it
+            cheats++;
+            return cheatSheet.get(starter);
+        }
         final HashSet<Person> starterParticipants = starter.getParticipants();
         for (Person a : starterParticipants) {
             for (Person b : a.minuses) {
@@ -119,8 +131,10 @@ public class Main {
                     int bPlusValue = solutionB.plusValue();
 
                     if (aPlusValue > bPlusValue) {
+                        cheatSheet.put(starter, solutionA);
                         return solutionA;
                     } else {
+                        cheatSheet.put(starter, solutionB);
                         return solutionB;
                     }
                 }
@@ -137,8 +151,8 @@ public class Main {
     //-----------------
 
     //pick a random other person
-    //TODO: still have a problem where you can have the same person on both the positive and the negative lists
-    //TODO: still have a problem where you can have the same person on a given list twice
+    //TODO: still have a problem where you can have the same person on both the positive and the negative lists, which is NOT handled in the code but shouldn't cause problems
+    //TODO: still have a problem where you can have the same person on a given list twice, which is handled in the code but is still altering our list amounts
     public static String pickOtherPerson(List<String> names, String name) {
         String result = name;
         while (result.equals(name)) {
@@ -150,9 +164,9 @@ public class Main {
 
 
     public static void writeFakeDataToClusterFile(String fileName) throws IOException {
-        int people = 20;
+        int people = 32;
         int maxPlus = 10;
-        int maxMinus = 5;
+        int maxMinus = 10;
 
         StringBuilder sb = new StringBuilder();
         List<String> names = new ArrayList<String>();

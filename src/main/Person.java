@@ -1,20 +1,19 @@
 package main;
 
-import java.util.ArrayList;
-import java.util.List;
+import java.util.HashSet;
 
 /**
  * @author Scott Albertine
  */
 public class Person {
     public String name;
-    public List<Person> plusses;
-    public List<Person> minuses;
+    public HashSet<Person> plusses;
+    public HashSet<Person> minuses;
 
     public Person(String name) {
         this.name = name;
-        this.plusses = new ArrayList<Person>();
-        this.minuses = new ArrayList<Person>();
+        this.plusses = new HashSet<Person>();
+        this.minuses = new HashSet<Person>();
     }
 
     @Override
