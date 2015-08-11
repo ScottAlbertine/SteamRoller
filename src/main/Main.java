@@ -14,7 +14,7 @@ public class Main {
     /**
      * This is a map of unsolved to solved clusters, so that we can prune entire branches of the tree rather than repeat a ton of calculations.
      */
-    static HashMap<Cluster, Cluster> cheatSheet = new HashMap<Cluster, Cluster>();
+    static HashMap<Integer, Cluster> cheatSheet = new HashMap<Integer, Cluster>();
     static int cheats = 0;
 
     static Random r = new Random();
@@ -24,17 +24,29 @@ public class Main {
         writeFakeDataToClusterFile("/Users/scottalbertine/Desktop/magneto/SteamRoller/sampleCluster.txt");
         Cluster initialCluster = parseClusterFile("/Users/scottalbertine/Desktop/magneto/SteamRoller/sampleCluster.txt");
         Cluster best = solve(initialCluster);
-        //System.out.println("best:");
-        //System.out.println(best.toString());
+        System.out.println("best:");
+        System.out.println(best.toString());
         System.out.println("cheat sheet size: " + cheatSheet.size());
         System.out.println("cheats used: " + cheats);
+        System.out.println();
         System.out.println("optimalPerPerson:");
-        for (Person person : masterList.optimalClusterPerPerson.keySet()) {
+        //sort this, because we can and why not?
+        TreeSet<Person> sortedOptimalClusters = new TreeSet<Person>(new Comparator<Person>() {
+            @Override
+            public int compare(Person o1, Person o2) {
+                return o1.name.compareTo(o2.name);
+            }
+        });
+        sortedOptimalClusters.addAll(masterList.optimalClusterPerPerson.keySet());
+        for (Person person : sortedOptimalClusters) {
             System.out.println(person.name + ": " + masterList.optimalClusterPerPerson.get(person).toString());
         }
+        System.out.println();
         System.out.println("best clusters overall:");
-        for (Cluster nextBest : masterList.highScores) {
-            System.out.println(nextBest.toString());
+        for (Integer score : masterList.highScores.keySet()) {
+            for (Cluster cluster : masterList.highScores.get(score)) {
+                System.out.println(cluster.toString());
+            }
         }
 
     }
@@ -74,7 +86,10 @@ public class Main {
                     }
                     final String[] names = line.replace("plus:", "").split(",");
                     for (String name : names) {
-                        currentPerson.plusses.add(people.get(name));
+                        Person plus = people.get(name);
+                        if(plus != null) { //if they plus someone who's not invited, this'll catch it
+                            currentPerson.plusses.add(plus);
+                        }
                     }
 
                     continue;
@@ -85,7 +100,10 @@ public class Main {
                     }
                     final String[] names = line.replace("minus:", "").split(",");
                     for (String name : names) {
-                        currentPerson.minuses.add(people.get(name));
+                        Person minus = people.get(name);
+                        if(minus != null) { //if they plus someone who's not invited, this'll catch it
+                            currentPerson.minuses.add(minus);
+                        }
                     }
                     continue;
                 }
@@ -106,43 +124,41 @@ public class Main {
     }
 
     public static Cluster solve(Cluster starter) {
-        if(cheatSheet.containsKey(starter)){ //skip everything and return the answer if we already know it
+        int starterHash = starter.hashCode();
+        if (cheatSheet.containsKey(starterHash)) { //skip everything and return the answer if we already know it
             cheats++;
-            return cheatSheet.get(starter);
+            return cheatSheet.get(starterHash);
         }
-        final HashSet<Person> starterParticipants = starter.getParticipants();
-        for (Person a : starterParticipants) {
-            for (Person b : a.minuses) {
-                if (starterParticipants.contains(b)) { //we have a problem, branch to resolve it, then compare the branch results and return the best one
-                    Cluster optionA = new Cluster(); //if we remove A
-                    Cluster optionB = new Cluster(); //if we remove B
-                    for (Person personToCopy : starterParticipants) {
-                        if (!personToCopy.equals(a)) {
-                            optionA.addParticipant(personToCopy);
-                        }
-                        if (!personToCopy.equals(b)) {
-                            optionB.addParticipant(personToCopy);
-                        }
-                    }
-
-                    Cluster solutionA = solve(optionA);
-                    Cluster solutionB = solve(optionB);
-                    int aPlusValue = solutionA.plusValue();
-                    int bPlusValue = solutionB.plusValue();
-
-                    if (aPlusValue > bPlusValue) {
-                        cheatSheet.put(starter, solutionA);
-                        return solutionA;
-                    } else {
-                        cheatSheet.put(starter, solutionB);
-                        return solutionB;
-                    }
-                }
+        ArrayList<Person> minusLink = starter.getMinusLink();
+        if (minusLink == null) { //if no problems, we're good, add to the master solution cache and return for comparison
+            masterList.add(starter);
+            return starter;
+        }
+        Person a = minusLink.get(0);
+        Person b = minusLink.get(1);
+        Cluster optionA = new Cluster(); //if we remove A
+        Cluster optionB = new Cluster(); //if we remove B
+        for (Person personToCopy : starter.getParticipants()) {
+            if (!personToCopy.equals(a)) {
+                optionA.addParticipant(personToCopy);
+            }
+            if (!personToCopy.equals(b)) {
+                optionB.addParticipant(personToCopy);
             }
         }
-        //if no problems, we're good, add to the master solution cache and return for comparison
-        masterList.add(starter);
-        return starter;
+
+        Cluster solutionA = solve(optionA);
+        Cluster solutionB = solve(optionB);
+        int aPlusValue = solutionA.plusValue();
+        int bPlusValue = solutionB.plusValue();
+
+        if (aPlusValue > bPlusValue) {
+            cheatSheet.put(starterHash, solutionA);
+            return solutionA;
+        } else {
+            cheatSheet.put(starterHash, solutionB);
+            return solutionB;
+        }
     }
 
 
@@ -160,7 +176,6 @@ public class Main {
         }
         return result;
     }
-
 
 
     public static void writeFakeDataToClusterFile(String fileName) throws IOException {
